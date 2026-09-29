@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+#
+# apiaudit - check an API endpoint for auth, transport and leak problems.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: apiaudit [options] <url>
+
+Options:
+  -X <method>   HTTP method (default GET)
+  -H <header>   Extra request header, repeatable
+  -d <body>     Request body (implies POST when -X is not given)
+  -t <token>    Shorthand for -H "Authorization: Bearer <token>"
+  -h, --help    Show this help
+
+Checks HTTPS, authentication behaviour, CORS, rate limiting headers and the
+response body for common leak patterns. Exits 1 on at least one FAIL.
+EOF
+}
+
+method="GET"
+headers_args=()
+body=""
+url=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -X)
+      [ $# -ge 2 ] || { echo "apiaudit: -X needs a value" >&2; exit 2; }
+      method="$2"
+      shift
+      ;;
+    -H)
+      [ $# -ge 2 ] || { echo "apiaudit: -H needs a value" >&2; exit 2; }
+      headers_args+=(-H "$2")
+      shift
+      ;;
+    -d)
+      [ $# -ge 2 ] || { echo "apiaudit: -d needs a value" >&2; exit 2; }
+      body="$2"
+      shift
+      ;;
+    -t)
+      [ $# -ge 2 ] || { echo "apiaudit: -t needs a value" >&2; exit 2; }
+      headers_args+=(-H "Authorization: Bearer $2")
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    -*)
+      echo "apiaudit: unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      url="$1"
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$url" ]; then
+  usage >&2
+  exit 2
+fi
+case "$url" in
+  http://* | https://*) ;;
+  *) url="https://$url" ;;
+esac
+if [ -n "$body" ] && [ "$method" = "GET" ]; then
+  method="POST"
+fi
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+curl_args=(-sS -o "$tmp" -D "$tmp.hdr" --max-time 25 -A "BeOniomarchy-apiaudit"
+  -w '%{http_code}\t%{url_effective}\t%{content_type}' -X "$method")
+if [ "${#headers_args[@]}" -gt 0 ]; then
+  curl_args+=("${headers_args[@]}")
+fi
+if [ -n "$body" ]; then
+  curl_args+=(-d "$body")
+fi
+
+if ! meta=$(curl "${curl_args[@]}" "$url" 2>/dev/null); then
+  rm -f "$tmp.hdr"
+  echo "FAIL  could not connect to $url"
+  exit 1
+fi
+trap 'rm -f "$tmp" "$tmp.hdr"' EXIT
+
+http_code=${meta%%$'\t'*}
+rest=${meta#*$'\t'}
+effective=${rest%%$'\t'*}
+content_type=${rest#*$'\t'}
+
+headers=$(tr -d '\r' <"$tmp.hdr" | awk 'BEGIN { RS = "" } { last = $0 } END { print last }')
+resp_body=$(head -c 8192 "$tmp")
+
+fails=0
+warns=0
+result() {
+  local level="$1" check="$2" detail="$3"
+  printf '%-4s  %-28s %s\n' "$level" "$check" "$detail"
+  case "$level" in
+    FAIL) fails=$((fails + 1)) ;;
+    WARN) warns=$((warns + 1)) ;;
+  esac
+}
+
+header() {
+  printf '%s\n' "$headers" | awk -v n="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" '
+    {
+      line = $0
+      pos = index(line, ":")
+      if (pos > 0) {
+        name = tolower(substr(line, 1, pos - 1))
+        if (name == n) {
+          val = substr(line, pos + 1)
+          sub(/^[ \t]+/, "", val)
+          print val
+          exit
+        }
+      }
+    }'
+}
+
+echo "apiaudit: $method $url"
+echo "  final URL:      $effective"
+echo "  status:         $http_code"
+echo "  content-type:   ${content_type:-unset}"
+echo
+
+case "$effective" in
+  https://*) result PASS "HTTPS" "final URL is https" ;;
+  *) result FAIL "HTTPS" "final URL is not https: $effective" ;;
+esac
+
+case "$method" in
+  OPTIONS) : ;;
+  *)
+    if [ "$http_code" = "401" ] || [ "$http_code" = "403" ]; then
+      result PASS "authentication" "request rejected ($http_code)"
+    elif [ "$http_code" = "200" ]; then
+      result WARN "authentication" "200 without credentials - endpoint is open"
+    elif [[ "$http_code" == 5?? ]]; then
+      result FAIL "server error" "$http_code"
+    else
+      result WARN "status code" "$http_code"
+    fi
+    ;;
+esac
+
+if [ "${http_code}" = "401" ] && [ -z "$(header www-authenticate)" ]; then
+  result WARN "WWW-Authenticate" "401 without WWW-Authenticate"
+fi
+
+case "$content_type" in
+  application/json* | application/xml* | text/plain* | '' | application/problem+json*)
+    result PASS "content-type" "${content_type:-not set}"
+    ;;
+  text/html*)
+    result WARN "content-type" "HTML for an API endpoint - debug page?"
+    ;;
+  *)
+    result WARN "content-type" "$content_type"
+    ;;
+esac
+
+acao=$(header access-control-allow-origin)
+acac=$(header access-control-allow-credentials)
+if [ -n "$acao" ]; then
+  if [ "$(printf '%s' "$acao" | tr '[:upper:]' '[:lower:]')" = "*" ] && [ -n "$acac" ]; then
+    result FAIL "CORS" "wildcard origin with credentials allowed"
+  elif [ "$(printf '%s' "$acao" | tr '[:upper:]' '[:lower:]')" = "*" ]; then
+    result WARN "CORS" "wildcard origin allowed"
+  else
+    result PASS "CORS" "origin: $acao"
+  fi
+fi
+
+if [ -n "$(header x-ratelimit-limit)" ] || [ -n "$(header retry-after)" ]; then
+  result PASS "rate limiting" "rate limit headers present"
+else
+  result WARN "rate limiting" "no x-ratelimit-* or Retry-After headers"
+fi
+
+for h in server x-powered-by x-aspnet-version; do
+  v=$(header "$h")
+  if [ -n "$v" ]; then
+    result WARN "server disclosure" "$h: $v"
+  fi
+done
+
+if printf '%s' "$resp_body" | grep -Eiq 'traceback \(most recent call last\)|SQLSTATE\[|ORA-[0-9]+|stack trace|Exception in [A-Za-z0-9_.]+|\bat [a-z0-9_.]+\([A-Za-z0-9_.]+:[0-9]+\)'; then
+  result FAIL "error leakage" "response body looks like an internal error dump"
+fi
+
+echo
+if [ "$fails" -gt 0 ]; then
+  echo "result: $fails failure(s), $warns warning(s)"
+  exit 1
+elif [ "$warns" -gt 0 ]; then
+  echo "result: 0 failures, $warns warning(s)"
+else
+  echo "result: all checks passed"
+fi

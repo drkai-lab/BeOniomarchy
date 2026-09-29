@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+#
+# reportgen - markdown status report for BeOniomarchy.
+set -euo pipefail
+
+STATE="${BEONI_STATE_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/beoniomarchy/state.tsv}"
+OUT=""
+TITLE="BeOniomarchy report"
+
+usage() {
+  cat <<'EOF'
+Usage: reportgen [--output <file>] [--title <title>]
+
+Writes a markdown report of system status and installer state.
+Without --output the report goes to stdout.
+EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o | --output)
+      [ $# -ge 2 ] || { echo "reportgen: --output needs a path" >&2; exit 2; }
+      OUT="$2"
+      shift
+      ;;
+    -t | --title)
+      [ $# -ge 2 ] || { echo "reportgen: --title needs a value" >&2; exit 2; }
+      TITLE="$2"
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+os_name="unknown"
+if [ -f /etc/os-release ]; then
+  # shellcheck disable=SC1091
+  os_name=$(. /etc/os-release; echo "${PRETTY_NAME:-$NAME}")
+fi
+omarchy_ver=$(command -v omarchy >/dev/null 2>&1 && omarchy version 2>/dev/null || echo "n/a")
+theme=$(command -v omarchy >/dev/null 2>&1 && omarchy theme current 2>/dev/null || echo "n/a")
+
+state_count() {
+  if [ -f "$STATE" ]; then
+    awk -F'\t' -v k="$1" '$1 == k { c++ } END { print c + 0 }' "$STATE"
+  else
+    echo 0
+  fi
+}
+
+report() {
+  echo "# $TITLE"
+  echo
+  echo "- Generated: $(date -Is)"
+  echo "- Host: $(hostname)"
+  echo "- OS: $os_name"
+  echo "- Omarchy: $omarchy_ver"
+  echo "- Theme: $theme"
+  echo
+  echo "## Installer state"
+  echo
+  echo "| Record | Count |"
+  echo "| --- | --- |"
+  echo "| Packages installed | $(state_count pkg) |"
+  echo "| Files created | $(state_count create) |"
+  echo "| Files backed up | $(state_count backup) |"
+  echo "| Directories created | $(state_count dir) |"
+  echo
+  if [ -f "$STATE" ]; then
+    pkgs=$(awk -F'\t' '$1 == "pkg" { print "- " $2 }' "$STATE")
+    if [ -n "$pkgs" ]; then
+      echo "### Packages added by BeOniomarchy"
+      echo
+      echo "$pkgs"
+      echo
+    fi
+    creates=$(awk -F'\t' '$1 == "create" { print "- `" $2 "`" }' "$STATE")
+    if [ -n "$creates" ]; then
+      echo "### Files created"
+      echo
+      echo "$creates"
+      echo
+    fi
+  else
+    echo "No installer state found at \`$STATE\`."
+    echo
+  fi
+  echo "## Tool availability"
+  echo
+  for c in nmap lynis clamav yara docker kubectl helm terraform lazygit uv ollama \
+    beoni-audit beoni-qualys beoni-checkmarx beoni-webaudit beoni-apiaudit; do
+    if command -v "$c" >/dev/null 2>&1; then
+      echo "- $c: installed"
+    else
+      echo "- $c: missing"
+    fi
+  done
+}
+
+if [ -n "$OUT" ]; then
+  mkdir -p "$(dirname "$OUT")"
+  report >"$OUT"
+  echo "report written: $OUT"
+else
+  report
+fi

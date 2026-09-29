@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+#
+# webaudit - check a website for common security header problems.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: webaudit <url>
+
+Checks HTTPS usage and common security headers. Prints PASS/WARN/FAIL for
+each check and exits 1 when at least one FAIL was found.
+EOF
+}
+
+if [ $# -lt 1 ]; then
+  usage >&2
+  exit 2
+fi
+case "$1" in
+  -h | --help)
+    usage
+    exit 0
+    ;;
+esac
+
+url="$1"
+case "$url" in
+  http://* | https://*) ;;
+  *) url="https://$url" ;;
+esac
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+if ! meta=$(curl -sSL -o /dev/null -D "$tmp" \
+  -w '%{http_code}\t%{url_effective}\t%{num_redirects}' \
+  --max-time 25 -A "BeOniomarchy-webaudit" "$url" 2>/dev/null); then
+  echo "FAIL  could not connect to $url"
+  exit 1
+fi
+
+http_code=${meta%%$'\t'*}
+rest=${meta#*$'\t'}
+effective=${rest%%$'\t'*}
+num_redirects=${rest##*$'\t'}
+
+# Last header block = the final response after redirects.
+headers=$(tr -d '\r' <"$tmp" | awk 'BEGIN { RS = "" } { last = $0 } END { print last }')
+
+fails=0
+warns=0
+result() { # result PASS|WARN|FAIL "check" "detail"
+  local level="$1" check="$2" detail="$3"
+  printf '%-4s  %-28s %s\n' "$level" "$check" "$detail"
+  case "$level" in
+    FAIL) fails=$((fails + 1)) ;;
+    WARN) warns=$((warns + 1)) ;;
+  esac
+}
+
+header() { # header <name> -> value (lowercased) or empty
+  printf '%s\n' "$headers" | awk -v n="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" '
+    {
+      line = $0
+      sub(/\r$/, "", line)
+      pos = index(line, ":")
+      if (pos > 0) {
+        name = tolower(substr(line, 1, pos - 1))
+        if (name == n) {
+          val = substr(line, pos + 1)
+          sub(/^[ \t]+/, "", val)
+          print val
+          exit
+        }
+      }
+    }'
+}
+
+echo "webaudit: $url"
+echo "  final URL:      $effective"
+echo "  status:         $http_code"
+echo "  redirects:      $num_redirects"
+echo
+
+case "$effective" in
+  https://*) result PASS "HTTPS" "final URL is https" ;;
+  *) result FAIL "HTTPS" "final URL is not https: $effective" ;;
+esac
+
+if [[ "$http_code" == 2?? ]]; then
+  result PASS "status code" "$http_code"
+elif [[ "$http_code" == 401 || "$http_code" == 403 ]]; then
+  result WARN "status code" "$http_code (auth required)"
+else
+  result FAIL "status code" "$http_code"
+fi
+
+h=$(header strict-transport-security)
+if [ -n "$h" ]; then
+  result PASS "HSTS" "$h"
+else
+  result FAIL "HSTS" "Strict-Transport-Security missing"
+fi
+
+h=$(header content-security-policy)
+if [ -n "$h" ]; then
+  result PASS "CSP" "present"
+else
+  result WARN "CSP" "Content-Security-Policy missing"
+fi
+
+h=$(header x-content-type-options)
+if [ "$(printf '%s' "$h" | tr '[:upper:]' '[:lower:]')" = "nosniff" ]; then
+  result PASS "X-Content-Type-Options" "nosniff"
+else
+  result FAIL "X-Content-Type-Options" "missing or not nosniff"
+fi
+
+h=$(header x-frame-options)
+frame_ancestors=$(printf '%s' "$(header content-security-policy)" | tr '[:upper:]' '[:lower:]')
+if [ -n "$h" ] || [[ "$frame_ancestors" == *frame-ancestors* ]]; then
+  result PASS "clickjacking" "X-Frame-Options/CSP frame-ancestors set"
+else
+  result WARN "clickjacking" "no X-Frame-Options or frame-ancestors"
+fi
+
+h=$(header referrer-policy)
+if [ -n "$h" ]; then
+  result PASS "Referrer-Policy" "$h"
+else
+  result WARN "Referrer-Policy" "missing"
+fi
+
+h=$(header permissions-policy)
+if [ -n "$h" ]; then
+  result PASS "Permissions-Policy" "present"
+else
+  result WARN "Permissions-Policy" "missing"
+fi
+
+for h in server x-powered-by; do
+  v=$(header "$h")
+  if [ -n "$v" ]; then
+    result WARN "server disclosure" "$h: $v"
+  fi
+done
+
+cookies=$(printf '%s\n' "$headers" | awk 'tolower($0) ~ /^set-cookie:/ { print }')
+if [ -n "$cookies" ]; then
+  while IFS= read -r cookie; do
+    [ -n "$cookie" ] || continue
+    low=$(printf '%s' "$cookie" | tr '[:upper:]' '[:lower:]')
+    name=$(printf '%s' "${cookie#*:}" | awk -F= '{ gsub(/^[ \t]+/, "", $1); print $1 }')
+    if [[ "$low" != *"secure"* ]]; then
+      result FAIL "cookie '$name'" "missing Secure flag"
+    fi
+    if [[ "$low" != *"httponly"* ]]; then
+      result WARN "cookie '$name'" "missing HttpOnly flag"
+    fi
+  done <<<"$cookies"
+fi
+
+echo
+if [ "$fails" -gt 0 ]; then
+  echo "result: $fails failure(s), $warns warning(s)"
+  exit 1
+elif [ "$warns" -gt 0 ]; then
+  echo "result: 0 failures, $warns warning(s)"
+else
+  echo "result: all checks passed"
+fi
