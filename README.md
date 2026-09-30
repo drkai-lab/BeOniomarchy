@@ -1,6 +1,6 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/beoniomarchy-dark.png">
-  <img alt="BeOniomarchy" src="docs/beoniomarchy.png">
+  <img alt="BeOniomarchy" src="docs/beoniomarchy.png" width="645">
 </picture>
 
 # BeOniomarchy v1.0
