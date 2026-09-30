@@ -14,7 +14,8 @@ on top of it.
 On the name: [Oniomarchy](https://oniomarchy.com) is an existing project
 by SalimRK that does this same job with a far bigger toolkit and its own
 signed package repository. This repo is a different attempt at the same
-idea, with its own much smaller set of tools, and it is not that project.
+idea, with its own much smaller set of tools, and it is not Oniomarchy
+itself.
 
 Everything here is nine numbered scripts. They put in the scanners and
 auditors I actually reach for, the container and Kubernetes bits, a couple

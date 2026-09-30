@@ -14,7 +14,7 @@ BeOniomarchy는 그대로 놓인 [Omarchy](https://omarchy.org)를
 이름에 대해 먼저. [Oniomarchy](https://oniomarchy.com)는 SalimRK의 기존
 프로젝트로, 같은 일을 훨씬 큰 도구 모음과 자체 서명 패키지 저장소로
 합니다. 이 저장소는 같은 아이디어에 대한 또 다른 시도이며, 도구는 제
-작은 소규모 구성입니다. 그 프로젝트가 아닙니다.
+작은 소규모 구성입니다. Oniomarchy 그 자체가 아닙니다.
 
 번호가 붙은 스크립트 아홉 개가 전부입니다. 평소 쓰는 스캐너와 감사 도구,
 컨테이너와 쿠버네틱스 쪽, AI 도구 몇 가지, Qualys와 Checkmarx용 API

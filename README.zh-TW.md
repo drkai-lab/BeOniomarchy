@@ -12,7 +12,7 @@ BeOniomarchy 把一台原裝的 [Omarchy](https://omarchy.org) 變成
 
 先說名字。[Oniomarchy](https://oniomarchy.com) 是 SalimRK 的既有專案，
 做的是同一件事，工具多得多，還自帶簽名的軟體套件倉庫。本儲存庫是對
-同一個想法的另一種嘗試，工具是自己的一小套，不是那個專案。
+同一個想法的另一種嘗試，工具是自己的一小套，不是 Oniomarchy 本身。
 
 全部就是九個帶編號的腳本。裝上我平時用的掃描與稽核工具、容器與
 Kubernetes 相關的東西，再加一點 AI 工具，放兩個 Qualys 和 Checkmarx
