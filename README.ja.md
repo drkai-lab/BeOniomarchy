@@ -1,4 +1,7 @@
-![BeOniomarchy](docs/beoniomarchy.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/beoniomarchy-dark.svg">
+  <img alt="BeOniomarchy" src="docs/beoniomarchy.svg">
+</picture>
 
 # BeOniomarchy v1.0
 
