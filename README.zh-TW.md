@@ -7,9 +7,12 @@
 
 [English](README.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | 繁體中文
 
-裝好 Omarchy，Arch 大致就能直接用了。我在它之上又加了一套自己的工具，
-讓同一台機器也能做安全方面的活，這就是 BeOniomarchy，成品我叫它
-「Oniomarchy」。
+BeOniomarchy 把一台原裝的 [Omarchy](https://omarchy.org) 變成
+「Oniomarchy」：機器和桌面都不動，只在上面加一層安全與開發工作站。
+
+先說名字。[Oniomarchy](https://oniomarchy.com) 是 SalimRK 的既有專案，
+做的是同一件事，工具多得多，還自帶簽名的軟體套件倉庫。本儲存庫是對
+同一個想法的另一種嘗試，工具是自己的一小套，不是那個專案。
 
 全部就是九個帶編號的腳本。裝上我平時用的掃描與稽核工具、容器與
 Kubernetes 相關的東西，再加一點 AI 工具，放兩個 Qualys 和 Checkmarx

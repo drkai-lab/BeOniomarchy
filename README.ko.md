@@ -7,9 +7,14 @@
 
 [English](README.md) | [日本語](README.ja.md) | 한국어 | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
-Omarchy를 깔면 Arch는 거의 원래 그대로 씁니다. 거기에 제 도구를 얹어서 같은
-머신에서 보안 작업까지 하도록 만든 게 BeOniomarchy이고, 완성본을
-"Oniomarchy"라고 부릅니다.
+BeOniomarchy는 그대로 놓인 [Omarchy](https://omarchy.org)를
+"Oniomarchy", 즉 보안·개발 워크스테이션으로 바꿔 주는 도구입니다.
+머신도 데스크톱도 그대로 두고 그 위에 얹습니다.
+
+이름에 대해 먼저. [Oniomarchy](https://oniomarchy.com)는 SalimRK의 기존
+프로젝트로, 같은 일을 훨씬 큰 도구 모음과 자체 서명 패키지 저장소로
+합니다. 이 저장소는 같은 아이디어에 대한 또 다른 시도이며, 도구는 제
+작은 소규모 구성입니다. 그 프로젝트가 아닙니다.
 
 번호가 붙은 스크립트 아홉 개가 전부입니다. 평소 쓰는 스캐너와 감사 도구,
 컨테이너와 쿠버네틱스 쪽, AI 도구 몇 가지, Qualys와 Checkmarx용 API

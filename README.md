@@ -7,11 +7,16 @@
 
 English | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
-Omarchy gives you a clean Arch install. This is what goes on top of it so
-the same machine can also be used for security work. I call the result an
-"Oniomarchy".
+BeOniomarchy turns a stock [Omarchy](https://omarchy.org) install into an
+"Oniomarchy": the same machine, with a security and development workstation
+on top of it.
 
-The whole thing is nine numbered scripts. They put in the scanners and
+On the name: [Oniomarchy](https://oniomarchy.com) is an existing project
+by SalimRK that does this same job with a far bigger toolkit and its own
+signed package repository. This repo is a different attempt at the same
+idea, with its own much smaller set of tools, and it is not that project.
+
+Everything here is nine numbered scripts. They put in the scanners and
 auditors I actually reach for, the container and Kubernetes bits, a couple
 of AI extras, two small API helpers for Qualys and Checkmarx, my own web
 and API audit scripts with a report generator, and they fork one of

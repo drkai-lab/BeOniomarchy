@@ -7,9 +7,15 @@
 
 [English](README.md) | 日本語 | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
-Omarchy を入れれば Arch はほぼ素のまま使えます。そこに自分のツールを載せて、
-同じマシンでセキュリティ作業も回るようにしたのが BeOniomarchy です。
-出来上がったものを「Oniomarchy」と呼んでいます。
+BeOniomarchy は、そのままの [Omarchy](https://omarchy.org) を
+「Oniomarchy」＝セキュリティ・開発用ワークステーションに変えるための
+道具です。マシンもデスクトップもそのままで、上に載せ替えます。
+
+名前の件から。[Oniomarchy](https://oniomarchy.com) は SalimRK による
+既存のプロジェクトで、同じことをはるかに大きなツールキットと独自の
+署名付きパッケージリポジトリでやっています。このリポジトリは同じ発想に
+対する別の試みで、ツールは自前の小さなものだけ。あのプロジェクトでは
+ありません。
 
 中身は番号のついたスクリプトが 9 つ。普段使いのスキャンナーと監査ツール、
 コンテナと Kubernetes 周り、AI 系を少々、Qualys と Checkmarx 用の API
