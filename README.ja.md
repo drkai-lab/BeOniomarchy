@@ -1,3 +1,5 @@
+![BeOniomarchy](docs/beoniomarchy.svg)
+
 # BeOniomarchy v1.0
 
 BeOniomarchy は [Omarchy](https://omarchy.org) を「Oniomarchy」= セキュリティ・開発用ワークステーションへ変換するツールキットです。

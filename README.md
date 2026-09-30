@@ -1,3 +1,5 @@
+![BeOniomarchy](docs/beoniomarchy.svg)
+
 # BeOniomarchy v1.0
 
 BeOniomarchy turns an [Omarchy](https://omarchy.org) system into an
