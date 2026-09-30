@@ -5,81 +5,97 @@
 
 # BeOniomarchy v1.0
 
-BeOniomarchy turns an [Omarchy](https://omarchy.org) system into an
-"Oniomarchy" - a security and development workstation.
+English | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
-## Features
+Omarchy gives you a clean Arch install. This is what goes on top of it so
+the same machine can also be used for security work. I call the result an
+"Oniomarchy".
 
-- Idempotent installer driven by numbered modules
-- Dry-run mode, per-module selection and full uninstall support
-- Every change is recorded so `./uninstall.sh` can reverse it
-- Security, dev, AI and cloud tooling
-- Qualys / Checkmarx API helpers
-- Web / API audit tools and a markdown report generator
-- Custom "Oniomarchy" Omarchy theme
+The whole thing is nine numbered scripts. They put in the scanners and
+auditors I actually reach for, the container and Kubernetes bits, a couple
+of AI extras, two small API helpers for Qualys and Checkmarx, my own web
+and API audit scripts with a report generator, and they fork one of
+Omarchy's stock themes into an "Oniomarchy" theme.
+
+Nothing in here is clever. Every file written, backup taken and package
+installed gets one line in a state file, and that file is the only thing
+`./uninstall.sh` reads when you want your machine back.
 
 ## Requirements
 
-- Omarchy (Arch Linux + `omarchy` CLI)
-- `sudo` for package installation
+- Omarchy, meaning Arch Linux with the `omarchy` CLI available
+- `sudo`, because packages go through pacman
 
-## Installation
+## Installing
 
 ```bash
-./install.sh --dry-run   # preview, changes nothing
-./install.sh             # install (asks for confirmation)
-./install.sh --yes       # unattended install
+./install.sh --dry-run   # print the plan, change nothing
+./install.sh             # install, asks for a yes first
+./install.sh --yes       # install without asking, needed when stdin is not a tty
 ```
 
-Useful options:
+Run the dry run at least once before you let it loose. If you only want
+part of the job done:
 
 ```bash
-./install.sh --list                 # show modules
-./install.sh --only 01,theme        # run selected modules only
+./install.sh --list            # show the modules
+./install.sh --only 01,theme   # run those two only
 ```
 
 Modules run in order:
 
-| Module | Purpose |
+| Module | What it does |
 | --- | --- |
-| `00-system` | Directories, baseline packages, `beoni-*` tool links |
+| `00-system` | directories, baseline packages, `beoni-*` links in `~/.local/bin` |
 | `01-security` | nmap, lynis, clamav, yara, `beoni-audit` |
 | `02-devtools` | lazygit, ripgrep, fzf, bat, eza, docker |
 | `03-ai-tools` | uv, ollama |
 | `04-cloud` | kubectl, helm, k9s, terraform, kustomize |
-| `05-qualys` | `beoni-qualys` API helper |
-| `06-checkmarx` | `beoni-checkmarx` API helper |
-| `07-report` | Markdown status report |
-| `08-theme` | Forks a stock theme into the Oniomarchy theme and applies it |
+| `05-qualys` | `beoni-qualys` |
+| `06-checkmarx` | `beoni-checkmarx` |
+| `07-report` | writes a markdown status report |
+| `08-theme` | forks a stock theme into Oniomarchy and switches to it |
 
-## Uninstallation
+## Uninstalling
 
 ```bash
-./uninstall.sh --dry-run   # preview
-./uninstall.sh --yes       # remove
+./uninstall.sh --dry-run   # show what would go
+./uninstall.sh --yes       # remove it
 ```
 
-Restores backed-up files, removes created files, restores the previous theme,
-removes the theme fork and uninstalls packages that the installer added.
-Use `--keep-packages`, `--keep-theme` or `--purge` to adjust.
+That restores every backup it took, deletes what it created, puts you back
+on your previous theme, drops the theme fork and removes the packages it
+added. It only acts on what is in the state file, so anything you installed
+by hand is left alone.
+
+`--keep-packages` and `--keep-theme` hold those parts back, `--purge` also
+wipes the reports under `~/.local/share/beoniomarchy/`, and `--list` prints
+the state file. If a step fails halfway the state file stays, so you can
+run it again and it picks up where it stopped.
 
 ## Tools
 
-Installed as `~/.local/bin/beoni-<name>`:
+Six commands end up in `~/.local/bin`:
 
 ```bash
-beoni-webaudit https://example.com        # security header audit
-beoni-apiaudit https://api.example.com    # API auth/CORS/leak audit
-beoni-reportgen -o report.md              # system + installer report
-beoni-audit                               # local port/service audit
-beoni-qualys hosts                        # Qualys API (needs credentials)
-beoni-checkmarx GET /projects             # Checkmarx API (needs token)
+beoni-webaudit https://example.com        # response security headers
+beoni-apiaudit https://api.example.com    # auth, CORS, leaks
+beoni-reportgen -o report.md              # machine + installer status
+beoni-audit                               # listening ports and services
+beoni-qualys hosts                        # Qualys API
+beoni-checkmarx GET /projects             # Checkmarx API
 ```
 
-Credentials go in `~/.config/beoniomarchy/*.env` (see the `.env.example`
-files created by the installer).
+The last two are the only ones that need credentials. The installer drops
+`qualys.env.example` and `checkmarx.env.example` into
+`~/.config/beoniomarchy/`. Copy each one to `qualys.env` and
+`checkmarx.env` and fill them in.
 
-## State
+## Where things are kept
 
-Installer state lives in `~/.local/state/beoniomarchy/` and reports in
-`~/.local/share/beoniomarchy/reports/`.
+- state and backups: `~/.local/state/beoniomarchy/`
+- reports: `~/.local/share/beoniomarchy/reports/`
+
+The state file is plain tab separated text with the types `pkg`, `create`,
+`backup`, `dir`, `theme` and `themefork`. You can just `cat` it. There is
+no database to dig through.

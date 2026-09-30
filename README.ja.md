@@ -5,78 +5,95 @@
 
 # BeOniomarchy v1.0
 
-BeOniomarchy は [Omarchy](https://omarchy.org) を「Oniomarchy」= セキュリティ・開発用ワークステーションへ変換するツールキットです。
+[English](README.md) | 日本語 | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
-## 機能
+Omarchy を入れれば Arch はほぼ素のまま使えます。そこに自分のツールを載せて、
+同じマシンでセキュリティ作業も回るようにしたのが BeOniomarchy です。
+出来上がったものを「Oniomarchy」と呼んでいます。
 
-- 番号付きモジュールによる冪等なインストーラ
-- ドライラン、モジュール単位の実行、完全なアンインストール対応
-- 変更内容をすべて記録し `./uninstall.sh` で復元可能
-- セキュリティ / 開発 / AI / クラウドツールの導入
-- Qualys / Checkmarx API ヘルパー
-- Web / API 監査ツールと Markdown レポート生成
-- カスタムテーマ「Oniomarchy」の適用
+中身は番号のついたスクリプトが 9 つ。普段使いのスキャンナーと監査ツール、
+コンテナと Kubernetes 周り、AI 系を少々、Qualys と Checkmarx 用の API
+ヘルパー、自分用の Web / API 監査スクリプトとレポート生成、そして Omarchy
+同梱テーマの 1 つを「Oniomarchy」テーマにフォークして切り替えます。
 
-## 必要環境
+仕掛けは特に何もありません。書いたファイル、取ったバックアップ、入れた
+パッケージを 1 行ずつ状態ファイルに足していくだけです。巻き戻すときは
+`./uninstall.sh` がそのファイルだけを見るので、状態に無いものを勝手に
+消したりはしません。
 
-- Omarchy（Arch Linux + `omarchy` CLI）
-- パッケージ導入用の `sudo`
+## 必要なもの
+
+- Omarchy（`omarchy` CLI が使える Arch Linux）
+- `sudo`（パッケージは pacman 経由）
 
 ## インストール
 
 ```bash
-./install.sh --dry-run   # 確認のみ（変更なし）
-./install.sh             # インストール（確認あり）
-./install.sh --yes       # 無人インストール
+./install.sh --dry-run   # 予定を出すだけ（変更なし）
+./install.sh             # インストール（実行前に確認あり）
+./install.sh --yes       # 確認を飛ばす。stdin がターミナルでないときは必須
 ```
 
-主なオプション:
+まずは一度ドライランを流してからにしてください。一部だけ実行したいときは:
 
 ```bash
-./install.sh --list               # モジュール一覧
-./install.sh --only 01,theme      # 指定モジュールのみ実行
+./install.sh --list            # モジュール一覧
+./install.sh --only 01,theme   # その 2 つだけ
 ```
 
-| モジュール | 内容 |
+モジュールは番号順に走ります:
+
+| モジュール | やること |
 | --- | --- |
-| `00-system` | ディレクトリ・基本パッケージ・`beoni-*` ツールのリンク |
+| `00-system` | ディレクトリ、基本パッケージ、`~/.local/bin` への `beoni-*` リンク |
 | `01-security` | nmap / lynis / clamav / yara、`beoni-audit` |
 | `02-devtools` | lazygit / ripgrep / fzf / bat / eza / docker |
 | `03-ai-tools` | uv / ollama |
 | `04-cloud` | kubectl / helm / k9s / terraform / kustomize |
-| `05-qualys` | `beoni-qualys` API ヘルパー |
-| `06-checkmarx` | `beoni-checkmarx` API ヘルパー |
-| `07-report` | Markdown ステータスレポート生成 |
-| `08-theme` | ストックテーマを Oniomarchy にフォークして適用 |
+| `05-qualys` | `beoni-qualys` |
+| `06-checkmarx` | `beoni-checkmarx` |
+| `07-report` | Markdown のステータスレポートを書き出す |
+| `08-theme` | 同梱テーマを Oniomarchy にフォークして切り替える |
 
 ## アンインストール
 
 ```bash
-./uninstall.sh --dry-run   # 確認のみ
-./uninstall.sh --yes       # 削除
+./uninstall.sh --dry-run   # 何が消えるかを見る
+./uninstall.sh --yes       # 削除する
 ```
 
-バックアップしたファイルの復元、作成ファイルの削除、元のテーマへの復帰、
-テーマフォークの削除、インストーラが追加したパッケージの削除を行います。
-`--keep-packages` / `--keep-theme` / `--purge` で挙動を調整できます。
+取ったバックアップを戻し、作ったファイルを消し、元のテーマに戻して、
+テーマフォークを落として、自分が入れたパッケージを外します。動かすのは
+状態ファイルに載っているものだけなので、手で入れたものはそのまま残ります。
+
+`--keep-packages` と `--keep-theme` はそれぞれを触らない、`--purge` は
+`~/.local/share/beoniomarchy/` 以下のレポートまで消す、`--list` は状態
+ファイルを表示します。途中で失敗しても状態ファイルは残してあるので、
+もう一度走らせれば止まったところから続けます。
 
 ## ツール
 
-`~/.local/bin/beoni-<名前>` として導入されます:
+6 つのコマンドが `~/.local/bin` に入ります:
 
 ```bash
-beoni-webaudit https://example.com        # セキュリティヘッダ監査
-beoni-apiaudit https://api.example.com    # API 認証/CORS/漏洩監査
-beoni-reportgen -o report.md              # システム+インストーラ状態レポート
-beoni-audit                               # ローカルポート/サービス監査
-beoni-qualys hosts                        # Qualys API（要認証情報）
-beoni-checkmarx GET /projects             # Checkmarx API（要トークン）
+beoni-webaudit https://example.com        # レスポンスのセキュリティヘッダ
+beoni-apiaudit https://api.example.com    # 認証 / CORS / 漏洩
+beoni-reportgen -o report.md              # マシンとインストーラの状態
+beoni-audit                               # 待受ポートとサービス
+beoni-qualys hosts                        # Qualys API
+beoni-checkmarx GET /projects             # Checkmarx API
 ```
 
-認証情報は `~/.config/beoniomarchy/*.env` に設定します
-（インストーラが作成する `.env.example` を参照）。
+認証情報が要るのは最後の 2 つだけです。インストーラが
+`~/.config/beoniomarchy/` に `qualys.env.example` と
+`checkmarx.env.example` を置くので、それぞれ `qualys.env` /
+`checkmarx.env` にコピーして値を入れてください。
 
-## 状態ファイル
+## ファイルの置き場所
 
-インストーラの状態は `~/.local/state/beoniomarchy/`、
-レポートは `~/.local/share/beoniomarchy/reports/` に保存されます。
+- 状態とバックアップ: `~/.local/state/beoniomarchy/`
+- レポート: `~/.local/share/beoniomarchy/reports/`
+
+状態ファイルは `pkg` / `create` / `backup` / `dir` / `theme` /
+`themefork` の 6 種類がタブ区切りで入ったプレーンテキストです。
+`cat` で読めます。データベースとかは無いので、探す場所もありません。
